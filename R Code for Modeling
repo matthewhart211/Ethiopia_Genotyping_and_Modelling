@@ -1,0 +1,9 @@
+## Load data
+Ethiopia_data <- read.csv(file.choose())
+
+## Create Linear Regression Model stored in variable "fit"
+fit <- lm(X25OHD ~ rs7041 + rs4588, data = Ethiopia_data)
+
+## Get model stats and view prediction plots
+summary(fit)
+plot(fit)
