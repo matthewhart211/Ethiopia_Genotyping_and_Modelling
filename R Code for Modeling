@@ -1,9 +1,35 @@
+## Load library
+library(tidyverse)
+library(ggplot2)
+library(ggpubr)
+library(fmsb)
+library(gvlma)
+
+
 ## Load data
 Ethiopia_data <- read.csv(file.choose())
 
-## Create Linear Regression Model stored in variable "fit"
-fit <- lm(X25OHD ~ rs7041 + rs4588, data = Ethiopia_data)
 
-## Get model stats and view prediction plots
-summary(fit)
-plot(fit)
+## Create Linear Regression Model stored in variable "fit" and logistic regression model "logistfit"
+fit1 <- lm(Log_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
+fit2 <- lm(Log_OHD_B ~ M_age + BMI_B + rs7041_risk_alleles, data = Ethiopia_data)
+logistfit1 <- glm(vit_d_deficient50 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+
+
+## Get model stats and view quality plots and stats
+summary(fit2)
+plot(fit2)
+VIF(fit2)
+gvlma::gvlma(x = fit2)
+
+
+## Create boxplots and violin plots
+ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", fill = "rs7041", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
+ggboxplot(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
+ggviolin(x = "rs7041_risk_alleles", y = "OHD_B", fill = "rs7041", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
+ggviolin(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
+
+
+## Publication quality plots
+ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", ylab = "25(OH)D", xlab = "Number of rs7041 Risk Alleles", fill = "rs7041_risk_alleles", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
+ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", xlim = c(0,2), ylim = c(0, 100), add = "reg.line", add.params = list(color = "blue", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
