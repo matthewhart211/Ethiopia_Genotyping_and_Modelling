@@ -1,4 +1,4 @@
-## Load library
+## Load libraries
 library(tidyverse)
 library(ggplot2)
 library(ggpubr)
@@ -6,14 +6,74 @@ library(fmsb)
 library(gvlma)
 
 
-## Load data
+## Load data and create secondary, subsetted data frames
 Ethiopia_data <- read.csv(file.choose())
+ABonly_data <- subset(Ethiopia_data, Letter == 'AB')
+CDonly_data <- subset(Ethiopia_data, Letter == 'CD')
+TTonly_data <- subset(Ethiopia_data, rs7041 == 'TT')
+TGonly_data <- subset(Ethiopia_data, rs7041 == 'TG')
+GGonly_data <- subset(Ethiopia_data, rs7041 == 'GG')
+CConly_data <- subset(Ethiopia_data, rs4588 == 'CC')
+CAonly_data <- subset(Ethiopia_data, rs4588 == 'CA')
+AAonly_data <- subset(Ethiopia_data, rs4588 == 'AA')
+TGandGG_data <- subset(Ethiopia_data, rs7041 == 'GG' | rs7041 == 'TG')
+
+## Getting summary statistics by genotype at each SNP
+summary(TTonly_data$M_age)
+summary(TTonly_data$BMI_B)
+summary(TTonly_data$OHD_B)
+summary(TGonly_data$M_age)
+summary(TGonly_data$BMI_B)
+summary(TGonly_data$OHD_B)
+summary(GGonly_data$M_age)
+summary(GGonly_data$BMI_B)
+summary(GGonly_data$OHD_B)
+summary(CConly_data$M_age)
+summary(CConly_data$BMI_B)
+summary(CConly_data$OHD_B)
+summary(CAonly_data$M_age)
+summary(CAonly_data$BMI_B)
+summary(CAonly_data$OHD_B)
+summary(AAonly_data$M_age)
+summary(AAonly_data$BMI_B)
+summary(AAonly_data$OHD_B)
+
+
+## Calculate data needed to determine relative risk for TT vs TG & GG at three cut points
+summary(TGandGG_data$vit_d_deficient50)
+summary(TTonly_data$vit_d_deficient50)
+summary(TGandGG_data$vit_d_deficient40)
+summary(TTonly_data$vit_d_deficient40)
+summary(TGandGG_data$vit_d_deficient30)
+summary(TTonly_data$vit_d_deficient30)
+
+## Calculate relative risk (risk ratio). The data comes from the output of each summary.
+RR50 <- riskratio(33, 31, 44, 60, conf.level = 0.95)
+RR40 <- riskratio(20, 14, 44, 60, conf.level = 0.95)
+RR30 <- riskratio(2, 2, 44, 60, conf.level = 0.95)
+
+## Create matrices for odds ratio calculation
+ORmatrix50 = matrix(c(33, 11, 31, 29), nrow=2, ncol=2) 
+ORmatrix40 = matrix(c(20, 24, 14, 46), nrow=2, ncol=2) 
+ORmatrix30 = matrix(c(2, 42, 2, 58), nrow=2, ncol=2) 
+
+## Calculate odds ratio
+OR50 <- oddsratio(ORmatrix50)
+OR40 <- oddsratio(ORmatrix40)
+OR30 <- oddsratio(ORmatrix30)
 
 
 ## Create Linear Regression Model stored in variable "fit" and logistic regression model "logistfit"
 fit1 <- lm(Log_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
 fit2 <- lm(Log_OHD_B ~ M_age + BMI_B + rs7041_risk_alleles, data = Ethiopia_data)
-logistfit1 <- glm(vit_d_deficient50 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+fit3 <- lm(Log_OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
+fit4 <- lm(Log_OHD_B ~ M_age + BMI_B + rs4588_risk_alleles, data = Ethiopia_data)
+logfit50_7041 <- glm(vit_d_deficient50 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+logfit40_7041 <- glm(vit_d_deficient40 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+logfit30_7041 <- glm(vit_d_deficient30 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+logfit50_4588 <- glm(vit_d_deficient50 ~ rs4588_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+logfit40_4588 <- glm(vit_d_deficient40 ~ rs4588_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
+logfit30_4588 <- glm(vit_d_deficient30 ~ rs4588_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)  
 
 
 ## Get model stats and view quality plots and stats
@@ -33,3 +93,5 @@ ggviolin(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("r
 ## Publication quality plots
 ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", ylab = "25(OH)D", xlab = "Number of rs7041 Risk Alleles", fill = "rs7041_risk_alleles", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
 ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", xlim = c(0,2), ylim = c(0, 100), add = "reg.line", add.params = list(color = "blue", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+
+
