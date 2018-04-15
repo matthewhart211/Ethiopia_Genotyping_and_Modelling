@@ -3,6 +3,7 @@ library(tidyverse)
 library(ggplot2)
 library(ggpubr)
 library(fmsb)
+library(rms)
 library(gvlma)
 
 
@@ -17,6 +18,13 @@ CConly_data <- subset(Ethiopia_data, rs4588 == 'CC')
 CAonly_data <- subset(Ethiopia_data, rs4588 == 'CA')
 AAonly_data <- subset(Ethiopia_data, rs4588 == 'AA')
 TGandGG_data <- subset(Ethiopia_data, rs7041 == 'GG' | rs7041 == 'TG')
+ABonly_TTonly <- subset(ABonly_data, rs7041 == 'TT')
+ABonly_TGonly <- subset(ABonly_data, rs7041 == 'TG')
+ABonly_GGonly <- subset(ABonly_data, rs7041 == 'GG')
+CDonly_TTonly <- subset(CDonly_data, rs7041 == 'TT')
+CDonly_TGonly <- subset(CDonly_data, rs7041 == 'TG')
+CDonly_GGonly <- subset(CDonly_data, rs7041 == 'GG')
+
 
 ## Getting summary statistics by genotype at each SNP
 summary(TTonly_data$M_age)
@@ -39,30 +47,6 @@ summary(AAonly_data$BMI_B)
 summary(AAonly_data$OHD_B)
 
 
-## Calculate data needed to determine relative risk for TT vs TG & GG at three cut points
-summary(TGandGG_data$vit_d_deficient50)
-summary(TTonly_data$vit_d_deficient50)
-summary(TGandGG_data$vit_d_deficient40)
-summary(TTonly_data$vit_d_deficient40)
-summary(TGandGG_data$vit_d_deficient30)
-summary(TTonly_data$vit_d_deficient30)
-
-## Calculate relative risk (risk ratio). The data comes from the output of each summary.
-RR50 <- riskratio(33, 31, 44, 60, conf.level = 0.95)
-RR40 <- riskratio(20, 14, 44, 60, conf.level = 0.95)
-RR30 <- riskratio(2, 2, 44, 60, conf.level = 0.95)
-
-## Create matrices for odds ratio calculation
-ORmatrix50 = matrix(c(33, 11, 31, 29), nrow=2, ncol=2) 
-ORmatrix40 = matrix(c(20, 24, 14, 46), nrow=2, ncol=2) 
-ORmatrix30 = matrix(c(2, 42, 2, 58), nrow=2, ncol=2) 
-
-## Calculate odds ratio
-OR50 <- oddsratio(ORmatrix50)
-OR40 <- oddsratio(ORmatrix40)
-OR30 <- oddsratio(ORmatrix30)
-
-
 ## Create Linear Regression Model stored in variable "fit" and logistic regression model "logistfit"
 fit1 <- lm(Log_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
 fit2 <- lm(Log_OHD_B ~ M_age + BMI_B + rs7041_risk_alleles, data = Ethiopia_data)
@@ -83,6 +67,15 @@ VIF(fit2)
 gvlma::gvlma(x = fit2)
 
 
+## Calculate odds ratios from logistic regression models
+ORlog50_7041 <- exp(cbind(OR = coef(logfit50_7041), confint(logfit50_7041)))
+ORlog40_7041 <- exp(cbind(OR = coef(logfit40_7041), confint(logfit40_7041)))
+ORlog30_7041 <- exp(cbind(OR = coef(logfit30_7041), confint(logfit30_7041)))
+ORlog50_4588 <- exp(cbind(OR = coef(logfit50_4588), confint(logfit50_4588)))
+ORlog40_4588 <- exp(cbind(OR = coef(logfit40_4588), confint(logfit40_4588)))
+ORlog30_4588 <- exp(cbind(OR = coef(logfit30_4588), confint(logfit30_4588)))
+
+
 ## Create boxplots and violin plots
 ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", fill = "rs7041", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
 ggboxplot(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
@@ -92,6 +85,107 @@ ggviolin(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("r
 
 ## Publication quality plots
 ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", ylab = "25(OH)D", xlab = "Number of rs7041 Risk Alleles", fill = "rs7041_risk_alleles", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
-ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", xlim = c(0,2), ylim = c(0, 100), add = "reg.line", add.params = list(color = "blue", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", xlim = c(0,2), ylim = c(0, 100), add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
 
 
+## Anova Analaysis for SNP's and log transformed OHD at baseline
+aov.fit7041 <- aov(Log_OHD_B ~ rs7041, data = Ethiopia_data)
+aov.fit4588 <- aov(Log_OHD_B ~ rs4588, data = Ethiopia_data)
+
+
+## Print summary of above
+summary(aov.fit7041)
+summary(aov.fit4588)
+
+
+## Check models with plots
+plot(aov.fit7041)
+plot(aov.fit4588)
+
+
+## Post Hoc Analysis of the above by Tukey's Test
+tukeytest7041 <- TukeyHSD(aov.fit7041)
+tukeytest4588 <- TukeyHSD(aov.fit4588)  
+
+
+## Calculate data needed to determine relative risk for TT vs TG&GG at three cut points
+summary(TGandGG_data$vit_d_deficient50)
+summary(TTonly_data$vit_d_deficient50)
+summary(TGandGG_data$vit_d_deficient40)
+summary(TTonly_data$vit_d_deficient40)
+summary(TGandGG_data$vit_d_deficient30)
+summary(TTonly_data$vit_d_deficient30)
+
+
+## Calculate relative risk (risk ratio) for TT vs TG&GG combined. The data comes from the output of each summary.
+RR50 <- riskratio(33, 31, 44, 60, conf.level = 0.95)
+RR40 <- riskratio(20, 14, 44, 60, conf.level = 0.95)
+RR30 <- riskratio(2, 2, 44, 60, conf.level = 0.95)
+
+
+## Print the above
+RR50
+RR40
+RR30
+
+
+## Create matrices for odds ratio calculation
+ORmatrix50 = matrix(c(33, 11, 31, 29), nrow=2, ncol=2) 
+ORmatrix40 = matrix(c(20, 24, 14, 46), nrow=2, ncol=2) 
+ORmatrix30 = matrix(c(2, 42, 2, 58), nrow=2, ncol=2) 
+
+
+## Calculate odds ratio from the above
+OR50 <- oddsratio(ORmatrix50)
+OR40 <- oddsratio(ORmatrix40)
+OR30 <- oddsratio(ORmatrix30)
+
+
+## Print the above
+OR50
+OR40
+OR30
+
+
+## Determining risk reduction caused by supplementation at timepoints 0, 6, & 12 weeks and cutoffs 40 & 50
+summary(CDonly_TTonly$vit_d_deficient40)
+summary(ABonly_TTonly$vit_d_deficient40)
+summary(CDonly_TGonly$vit_d_deficient40)
+summary(ABonly_TGonly$vit_d_deficient40)
+summary(CDonly_GGonly$vit_d_deficient40)
+summary(ABonly_GGonly$vit_d_deficient40)
+
+summary(CDonly_TTonly$vit_d_deficient50)
+summary(ABonly_TTonly$vit_d_deficient50)
+summary(CDonly_TGonly$vit_d_deficient50)
+summary(ABonly_TGonly$vit_d_deficient50)
+summary(CDonly_GGonly$vit_d_deficient50)
+summary(ABonly_GGonly$vit_d_deficient50)
+
+summary(CDonly_TTonly$vd_deficiency406)
+summary(ABonly_TTonly$vd_deficiency406)
+summary(CDonly_TGonly$vd_deficiency406)
+summary(ABonly_TGonly$vd_deficiency406)
+summary(CDonly_GGonly$vd_deficiency406)
+summary(ABonly_GGonly$vd_deficiency406)
+
+summary(CDonly_TTonly$vd_deficiency4012)
+summary(ABonly_TTonly$vd_deficiency4012)
+summary(CDonly_TGonly$vd_deficiency4012)
+summary(ABonly_TGonly$vd_deficiency4012)
+summary(CDonly_GGonly$vd_deficiency4012)
+summary(ABonly_GGonly$vd_deficiency4012)
+
+summary(CDonly_TTonly$vd_deficiency506)
+summary(ABonly_TTonly$vd_deficiency506)
+summary(CDonly_TGonly$vd_deficiency506)
+summary(ABonly_TGonly$vd_deficiency506)
+summary(CDonly_GGonly$vd_deficiency506)
+summary(ABonly_GGonly$vd_deficiency506)
+
+summary(CDonly_TTonly$vd_deficiency5012)
+summary(ABonly_TTonly$vd_deficiency5012)
+summary(CDonly_TGonly$vd_deficiency5012)
+summary(ABonly_TGonly$vd_deficiency5012)
+summary(CDonly_GGonly$vd_deficiency5012)
+summary(ABonly_GGonly$vd_deficiency5012)
