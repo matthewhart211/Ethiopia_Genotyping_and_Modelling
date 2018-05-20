@@ -2,13 +2,26 @@
 library(tidyverse)
 library(ggplot2)
 library(ggpubr)
-library(fmsb)
 library(rms)
 library(gvlma)
 
 
-## Load data and create secondary, subsetted data frames
+## Load data and create transformed and calculated variables and subsetted data frames
 Ethiopia_data <- read.csv(file.choose())
+Ethiopia_data$ln_OHD_B <- log(Ethiopia_data$OHD_B)
+Ethiopia_data$abs_change <- Ethiopia_data$OHD_E - Ethiopia_data$OHD_B
+Ethiopia_data$rel_change <- (Ethiopia_data$OHD_E - Ethiopia_data$OHD_B)/Ethiopia_data$OHD_B
+Ethiopia_data$Haplotype <- paste(Ethiopia_data$rs7041, Ethiopia_data$rs4588, sep = "")
+Ethiopia_data$alb_gl_B <- Ethiopia_data$Alb_base * 10
+Ethiopia_data$alb_gl_6 <- Ethiopia_data$Alb_6mo * 10
+Ethiopia_data$alb_gl_12 <- Ethiopia_data$Alb_12mo * 10
+Ethiopia_data$molar_alb_B <- Ethiopia_data$alb_gl_B / 66430
+Ethiopia_data$molar_alb_6 <- Ethiopia_data$alb_gl_6 / 66430
+Ethiopia_data$molar_alb_12 <- Ethiopia_data$alb_gl_12 / 66430
+
+Ethiopia_data$VDBP_gL <- Ethiopia_data$VDBP
+Ethiopia_data$molar_VDBP <- Ethiopia_data$VDBP_gl / 58000
+
 ABonly_data <- subset(Ethiopia_data, Letter == 'AB')
 CDonly_data <- subset(Ethiopia_data, Letter == 'CD')
 TTonly_data <- subset(Ethiopia_data, rs7041 == 'TT')
@@ -24,47 +37,90 @@ ABonly_GGonly <- subset(ABonly_data, rs7041 == 'GG')
 CDonly_TTonly <- subset(CDonly_data, rs7041 == 'TT')
 CDonly_TGonly <- subset(CDonly_data, rs7041 == 'TG')
 CDonly_GGonly <- subset(CDonly_data, rs7041 == 'GG')
+ABonly_CConly <- subset(ABonly_data, rs4588 == 'CC')
+ABonly_CAonly <- subset(ABonly_data, rs4588 == 'CA')
+ABonly_AAonly <- subset(ABonly_data, rs4588 == 'AA')
+CDonly_CConly <- subset(CDonly_data, rs4588 == 'CC')
+CDonly_CAonly <- subset(CDonly_data, rs4588 == 'CA')
+CDonly_AAonly <- subset(CDonly_data, rs4588 == 'AA')
+
+# Create affinity constant variable for each haplogroup
+KDBPgeneric <- 0.7*10^9
+KDBP1s <- 0.6*10^9
+KDBP1f <- 1.12*10^9
+KDBP2 <- 0.36*10^9
+Kalb <- 6*10^5
 
 
 ## Getting summary statistics by genotype at each SNP
-summary(TTonly_data$M_age)
-summary(TTonly_data$BMI_B)
-summary(TTonly_data$OHD_B)
-summary(TGonly_data$M_age)
-summary(TGonly_data$BMI_B)
-summary(TGonly_data$OHD_B)
-summary(GGonly_data$M_age)
-summary(GGonly_data$BMI_B)
-summary(GGonly_data$OHD_B)
-summary(CConly_data$M_age)
-summary(CConly_data$BMI_B)
-summary(CConly_data$OHD_B)
-summary(CAonly_data$M_age)
-summary(CAonly_data$BMI_B)
-summary(CAonly_data$OHD_B)
-summary(AAonly_data$M_age)
-summary(AAonly_data$BMI_B)
-summary(AAonly_data$OHD_B)
+rs7041_sum_stats <- summary(rs7041_risk_alleles ~ M_age + BMI_B + OHD_B, method = "reverse", data = Ethiopia_data)
+rs4588_sum_stats <- summary(rs4588_risk_alleles ~ M_age + BMI_B + OHD_B, method = "reverse", data = Ethiopia_data)
+rs7041_CD_res_stats <- summary(rs7041_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = CDonly_data)
+rs4588_CD_res_stats <- summary(rs4588_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = CDonly_data)
+rs7041_AB_res_stats <- summary(rs7041_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = ABonly_data)
+rs4588_AB_res_stats <- summary(rs4588_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = ABonly_data)
+
+
+## Print the above variables
+rs7041_sum_stats
+rs4588_sum_stats
+rs7041_CD_res_stats
+rs4588_CD_res_stats
+rs7041_AB_res_stats
+rs4588_AB_res_stats
+
+## Run ANOVA to determine p values for each summary stat per genotype
+aov.fit_age7041 <- aov(M_age ~ rs7041_risk_alleles, data = Ethiopia_data)
+aov.fit_age4588 <- aov(M_age ~ rs4588_risk_alleles, data = Ethiopia_data)
+aov.fit_BMI7041 <- aov(BMI_B ~ rs7041_risk_alleles, data = Ethiopia_data)
+aov.fit_BMI4588 <- aov(BMI_B ~ rs4588_risk_alleles, data = Ethiopia_data)
+
+
+## Print summary of above
+summary(aov.fit_age7041)
+summary(aov.fit_age4588)
+summary(aov.fit_BMI7041)
+summary(aov.fit_BMI4588)
 
 
 ## Create Linear Regression Model stored in variable "fit" and logistic regression model "logistfit"
-fit1 <- lm(Log_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
-fit2 <- lm(Log_OHD_B ~ M_age + BMI_B + rs7041_risk_alleles, data = Ethiopia_data)
-fit3 <- lm(Log_OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
-fit4 <- lm(Log_OHD_B ~ M_age + BMI_B + rs4588_risk_alleles, data = Ethiopia_data)
-logfit50_7041 <- glm(vit_d_deficient50 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
-logfit40_7041 <- glm(vit_d_deficient40 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
-logfit30_7041 <- glm(vit_d_deficient30 ~ rs7041_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
-logfit50_4588 <- glm(vit_d_deficient50 ~ rs4588_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
-logfit40_4588 <- glm(vit_d_deficient40 ~ rs4588_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)
-logfit30_4588 <- glm(vit_d_deficient30 ~ rs4588_risk_alleles + M_age + BMI_B,family=binomial(link='logit'), data= Ethiopia_data)  
-
+fit1 <- lm(OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
+fit2 <- lm(OHD_B ~ rs7041_risk_alleles + M_age, data = Ethiopia_data)
+fit3 <- lm(OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
+fit4 <- lm(OHD_B ~ rs4588_risk_alleles + M_age, data = Ethiopia_data)
+fit5 <- lm(OHD_B ~ Total_risk_alleles + M_age, data = Ethiopia_data)
+logfit50_7041 <- glm(vit_d_deficient50 ~ rs7041_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
+logfit40_7041 <- glm(vit_d_deficient40 ~ rs7041_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
+logfit30_7041 <- glm(vit_d_deficient30 ~ rs7041_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
+logfit50_4588 <- glm(vit_d_deficient50 ~ rs4588_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
+logfit40_4588 <- glm(vit_d_deficient40 ~ rs4588_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
+logfit30_4588 <- glm(vit_d_deficient30 ~ rs4588_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)  
+logfit40_total <- glm(vit_d_deficient40 ~ Total_risk_alleles+ M_age, family=binomial(link ='logit'), data = Ethiopia_data)
 
 ## Get model stats and view quality plots and stats
+summary(fit1)
+plot(fit1)
+mean(fit1$residuals)
+VIF(fit1)
+fit1.tests <- gvlma::gvlma(x = fit1)
+
 summary(fit2)
 plot(fit2)
+mean(fit2$residuals)
 VIF(fit2)
-gvlma::gvlma(x = fit2)
+fit2.tests <- gvlma::gvlma(x = fit2)
+
+summary(fit3)
+plot(fit3)
+mean(fit3$residuals)
+VIF(fit3)
+fit.tests3 <- gvlma::gvlma(x = fit3)
+
+summary(fit4)
+plot(fit4)
+mean(fit4$residuals)
+VIF(fit4)
+fit.tests4 <- gvlma::gvlma(x = fit4)
 
 
 ## Calculate odds ratios from logistic regression models
@@ -74,23 +130,11 @@ ORlog30_7041 <- exp(cbind(OR = coef(logfit30_7041), confint(logfit30_7041)))
 ORlog50_4588 <- exp(cbind(OR = coef(logfit50_4588), confint(logfit50_4588)))
 ORlog40_4588 <- exp(cbind(OR = coef(logfit40_4588), confint(logfit40_4588)))
 ORlog30_4588 <- exp(cbind(OR = coef(logfit30_4588), confint(logfit30_4588)))
-
-
-## Create boxplots and violin plots
-ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", fill = "rs7041", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
-ggboxplot(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
-ggviolin(x = "rs7041_risk_alleles", y = "OHD_B", fill = "rs7041", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
-ggviolin(x = "rs4588_risk_alleles", y = "OHD_B", fill = "rs4588", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
-
-
-## Publication quality plots
-ggboxplot(x = "rs7041_risk_alleles", y = "OHD_B", ylab = "25(OH)D", xlab = "Number of rs7041 Risk Alleles", fill = "rs7041_risk_alleles", palette = c("red", "purple", "blue"), add = "jitter", data = Ethiopia_data)
-ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", xlim = c(0,2), ylim = c(0, 100), add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
-
+ORlog40_total <- exp(cbind(OR = coef(logfit40_total), confint(logfit40_total)))
 
 ## Anova Analaysis for SNP's and log transformed OHD at baseline
-aov.fit7041 <- aov(Log_OHD_B ~ rs7041, data = Ethiopia_data)
-aov.fit4588 <- aov(Log_OHD_B ~ rs4588, data = Ethiopia_data)
+aov.fit7041 <- aov(ln_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
+aov.fit4588 <- aov(ln_OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
 
 
 ## Print summary of above
@@ -108,66 +152,93 @@ tukeytest7041 <- TukeyHSD(aov.fit7041)
 tukeytest4588 <- TukeyHSD(aov.fit4588)  
 
 
-## Calculate data needed to determine relative risk for TT vs TG&GG at three cut points
-summary(TGandGG_data$vit_d_deficient50)
-summary(TTonly_data$vit_d_deficient50)
-summary(TGandGG_data$vit_d_deficient40)
-summary(TTonly_data$vit_d_deficient40)
-summary(TGandGG_data$vit_d_deficient30)
-summary(TTonly_data$vit_d_deficient30)
-
-
-## Calculate relative risk (risk ratio) for TT vs TG&GG combined. The data comes from the output of each summary.
-RR50 <- riskratio(33, 31, 44, 60, conf.level = 0.95)
-RR40 <- riskratio(20, 14, 44, 60, conf.level = 0.95)
-RR30 <- riskratio(2, 2, 44, 60, conf.level = 0.95)
-
-
-## Print the above
-RR50
-RR40
-RR30
-
-
-## Create matrices for odds ratio calculation
-ORmatrix50 = matrix(c(33, 11, 31, 29), nrow=2, ncol=2) 
-ORmatrix40 = matrix(c(20, 24, 14, 46), nrow=2, ncol=2) 
-ORmatrix30 = matrix(c(2, 42, 2, 58), nrow=2, ncol=2) 
-
-
-## Calculate odds ratio from the above
-OR50 <- oddsratio(ORmatrix50)
-OR40 <- oddsratio(ORmatrix40)
-OR30 <- oddsratio(ORmatrix30)
-
-
-## Print the above
-OR50
-OR40
-OR30
-
-
 ## Determining risk reduction caused by supplementation at timepoints 0, 6, & 12 weeks and cutoffs 40 & 50
+summary(rs7041 ~ vd_deficiency506 + vd_deficiency5012 + vd_deficiency406 + vd_deficiency4012, method = "reverse", data = CDonly_data)
+summary(rs7041 ~ vd_deficiency506 + vd_deficiency5012 + vd_deficiency406 + vd_deficiency4012, method = "reverse", data = ABonly_data)
+
+## Publication quality plots
+rs7041_boxplot <- ggplot(data = Ethiopia_data, aes(x = rs7041, y = OHD_B, fill=rs7041)) +
+geom_boxplot() +
+geom_jitter(width = 0.2) +
+stat_summary(fun.y=mean, geom="point", shape=23, size=3) +
+theme_bw()+
+labs(x = "rs7041 Genotype", y = "25(OH)D (nM)")+
+theme(legend.position = "none")
+
+rs4588_boxplot <- ggplot(data = Ethiopia_data, aes(x = rs4588, y = OHD_B, fill=rs4588)) +
+geom_boxplot() +
+geom_jitter(width = 0.2) +
+stat_summary(fun.y=mean, geom="point", shape=23, size=3) +
+theme_bw()+
+labs(x = "rs4588 Genotype", y = "25(OH)D (nM)")+
+theme(legend.position = "none")
+
+Total_boxplot <- ggplot(data = Ethiopia_data, aes(group= Total_risk_alleles, x = Total_risk_alleles, y = OHD_B)) +
+  geom_boxplot(fill = c("green", "lightblue", "blue", "orange", "red")) +
+  geom_jitter(width = 0.2) +
+  stat_summary(fun.y=mean, geom="point", shape=23, size=3) +
+  theme_bw()+
+  labs(x = "Total Number of Risk Alleles", y = "25(OH)D (nM)")+
+  theme(legend.position = "none")
+
+rs7041_scatter <- ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+rs4588_scatter <- ggscatter(x = "rs4588_risk_alleles", y = "OHD_B", xlab = "rs4588 Risk Alleles", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+
+combined_fig <- ggarrange(rs7041_boxplot, rs7041_scatter, rs4588_boxplot, rs4588_scatter + rremove("x.text"), labels = c("A", "B"), ncol = 2, nrow = 2)
+
+Total_scatter <- ggscatter(x = "Total_risk_alleles", y = "OHD_B", xlab = "Total Risk Alleles", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+
+ggscatter(x = "M_age", y = "OHD_B", xlab = "Maternal Age", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+
+total_combined <- ggarrange(Total_boxplot, Total_scatter + rremove("x.text"), labels = c("A", "B"), ncol = 2, nrow = 1)
+
+Total_change_boxplot <- ggplot(data = Ethiopia_data, aes(group= Total_risk_alleles, x = Total_risk_alleles, y = abs_change)) +
+geom_jitter(aes(colour = Group), width = 0.27, size = 2.8) +
+theme_bw()+
+labs(x = "Total Number of Risk Alleles", y = "Absolute Change in 25(OH)D (nM)")
+
+Haplotype_change_boxplot <- ggplot(data = Ethiopia_data, aes(x = Haplotype, y = abs_change)) +
+geom_jitter(aes(colour = Group), width = 0.15, size = 2.5) +
+theme_bw()+
+labs(x = "Haplotype", y = "Absolute Change in 25(OH)D (nM)")
+
+## Summary statistics for table 1
+summary(Ethiopia_data$rs7041)
+summary(Ethiopia_data$rs4588)
+
+summary(TTonly_data$M_age)
+summary(TGonly_data$M_age)
+summary(GGonly_data$M_age)
+summary(CConly_data$M_age)
+summary(CAonly_data$M_age)
+summary(AAonly_data$M_age)
+
+summary(TTonly_data$BMI_B)
+summary(TGonly_data$BMI_B)
+summary(GGonly_data$BMI_B)
+summary(CConly_data$BMI_B)
+summary(CAonly_data$BMI_B)
+summary(AAonly_data$BMI_B)
+
+summary(TTonly_data$OHD_B)
+summary(TGonly_data$OHD_B)
+summary(GGonly_data$OHD_B)
+summary(CConly_data$OHD_B)
+summary(CAonly_data$OHD_B)
+summary(AAonly_data$OHD_B)
+
 summary(CDonly_TTonly$vit_d_deficient40)
 summary(ABonly_TTonly$vit_d_deficient40)
 summary(CDonly_TGonly$vit_d_deficient40)
 summary(ABonly_TGonly$vit_d_deficient40)
 summary(CDonly_GGonly$vit_d_deficient40)
 summary(ABonly_GGonly$vit_d_deficient40)
-
-summary(CDonly_TTonly$vit_d_deficient50)
-summary(ABonly_TTonly$vit_d_deficient50)
-summary(CDonly_TGonly$vit_d_deficient50)
-summary(ABonly_TGonly$vit_d_deficient50)
-summary(CDonly_GGonly$vit_d_deficient50)
-summary(ABonly_GGonly$vit_d_deficient50)
-
-summary(CDonly_TTonly$vd_deficiency406)
-summary(ABonly_TTonly$vd_deficiency406)
-summary(CDonly_TGonly$vd_deficiency406)
-summary(ABonly_TGonly$vd_deficiency406)
-summary(CDonly_GGonly$vd_deficiency406)
-summary(ABonly_GGonly$vd_deficiency406)
+summary(CDonly_CConly$vit_d_deficient40)
+summary(ABonly_CConly$vit_d_deficient40)
+summary(CDonly_CAonly$vit_d_deficient40)
+summary(ABonly_CAonly$vit_d_deficient40)
+summary(CDonly_AAonly$vit_d_deficient40)
+summary(ABonly_AAonly$vit_d_deficient40)
 
 summary(CDonly_TTonly$vd_deficiency4012)
 summary(ABonly_TTonly$vd_deficiency4012)
@@ -175,17 +246,51 @@ summary(CDonly_TGonly$vd_deficiency4012)
 summary(ABonly_TGonly$vd_deficiency4012)
 summary(CDonly_GGonly$vd_deficiency4012)
 summary(ABonly_GGonly$vd_deficiency4012)
+summary(CDonly_CConly$vd_deficiency4012)
+summary(ABonly_CConly$vd_deficiency4012)
+summary(CDonly_CAonly$vd_deficiency4012)
+summary(ABonly_CAonly$vd_deficiency4012)
+summary(CDonly_AAonly$vd_deficiency4012)
+summary(ABonly_AAonly$vd_deficiency4012)
 
-summary(CDonly_TTonly$vd_deficiency506)
-summary(ABonly_TTonly$vd_deficiency506)
-summary(CDonly_TGonly$vd_deficiency506)
-summary(ABonly_TGonly$vd_deficiency506)
-summary(CDonly_GGonly$vd_deficiency506)
-summary(ABonly_GGonly$vd_deficiency506)
+summary(CDonly_TTonly$OHD_E)
+summary(ABonly_TTonly$OHD_E)
+summary(CDonly_TGonly$OHD_E)
+summary(ABonly_TGonly$OHD_E)
+summary(CDonly_GGonly$OHD_E)
+summary(ABonly_GGonly$OHD_E)
+summary(CDonly_CConly$OHD_E)
+summary(ABonly_CConly$OHD_E)
+summary(CDonly_CAonly$OHD_E)
+summary(ABonly_CAonly$OHD_E)
+summary(CDonly_AAonly$OHD_E)
+summary(ABonly_AAonly$OHD_E)
 
-summary(CDonly_TTonly$vd_deficiency5012)
-summary(ABonly_TTonly$vd_deficiency5012)
-summary(CDonly_TGonly$vd_deficiency5012)
-summary(ABonly_TGonly$vd_deficiency5012)
-summary(CDonly_GGonly$vd_deficiency5012)
-summary(ABonly_GGonly$vd_deficiency5012)
+summary(CDonly_TTonly$abs_change)
+summary(ABonly_TTonly$abs_change)
+summary(CDonly_TGonly$abs_change)
+summary(ABonly_TGonly$abs_change)
+summary(CDonly_GGonly$abs_change)
+summary(ABonly_GGonly$abs_change)
+summary(CDonly_CConly$abs_change)
+summary(ABonly_CConly$abs_change)
+summary(CDonly_CAonly$abs_change)
+summary(ABonly_CAonly$abs_change)
+summary(CDonly_AAonly$abs_change)
+summary(ABonly_AAonly$abs_change)
+
+summary(CDonly_TTonly$rel_change)
+summary(ABonly_TTonly$rel_change)
+summary(CDonly_TGonly$rel_change)
+summary(ABonly_TGonly$rel_change)
+summary(CDonly_GGonly$rel_change)
+summary(ABonly_GGonly$rel_change)
+summary(CDonly_CConly$rel_change)
+summary(ABonly_CConly$rel_change)
+summary(CDonly_CAonly$rel_change)
+summary(ABonly_CAonly$rel_change)
+summary(CDonly_AAonly$rel_change)
+summary(ABonly_AAonly$rel_change)
+
+
+
