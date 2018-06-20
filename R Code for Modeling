@@ -4,13 +4,20 @@ library(ggplot2)
 library(ggpubr)
 library(rms)
 library(gvlma)
+library(pwr)
+
+
+#Pre-test Power Analysis
+pwr.f2.test(u = 2, v = 107, f2 = 0.05)
 
 
 ## Load data and create transformed and calculated variables and subsetted data frames
 Ethiopia_data <- read.csv(file.choose())
 Ethiopia_data$ln_OHD_B <- log(Ethiopia_data$OHD_B)
-Ethiopia_data$abs_change <- Ethiopia_data$OHD_E - Ethiopia_data$OHD_B
-Ethiopia_data$rel_change <- (Ethiopia_data$OHD_E - Ethiopia_data$OHD_B)/Ethiopia_data$OHD_B
+Ethiopia_data$abs_change12 <- Ethiopia_data$OHD_E - Ethiopia_data$OHD_B
+Ethiopia_data$abs_change6 <- Ethiopia_data$OHD_6 - Ethiopia_data$OHD_B
+Ethiopia_data$rel_change12 <- (Ethiopia_data$OHD_E - Ethiopia_data$OHD_B)/Ethiopia_data$OHD_B
+Ethiopia_data$rel_change6 <- (Ethiopia_data$OHD_6 - Ethiopia_data$OHD_B)/Ethiopia_data$OHD_B
 Ethiopia_data$Haplotype <- paste(Ethiopia_data$rs7041, Ethiopia_data$rs4588, sep = "")
 Ethiopia_data$alb_gl_B <- Ethiopia_data$Alb_base * 10
 Ethiopia_data$alb_gl_6 <- Ethiopia_data$Alb_6mo * 10
@@ -132,10 +139,10 @@ ORlog40_4588 <- exp(cbind(OR = coef(logfit40_4588), confint(logfit40_4588)))
 ORlog30_4588 <- exp(cbind(OR = coef(logfit30_4588), confint(logfit30_4588)))
 ORlog40_total <- exp(cbind(OR = coef(logfit40_total), confint(logfit40_total)))
 
+
 ## Anova Analaysis for SNP's and log transformed OHD at baseline
 aov.fit7041 <- aov(ln_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
 aov.fit4588 <- aov(ln_OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
-
 
 ## Print summary of above
 summary(aov.fit7041)
@@ -174,12 +181,12 @@ labs(x = "rs4588 Genotype", y = "25(OH)D (nM)")+
 theme(legend.position = "none")
 
 Total_boxplot <- ggplot(data = Ethiopia_data, aes(group= Total_risk_alleles, x = Total_risk_alleles, y = OHD_B)) +
-  geom_boxplot(fill = c("green", "lightblue", "blue", "orange", "red")) +
-  geom_jitter(width = 0.2) +
-  stat_summary(fun.y=mean, geom="point", shape=23, size=3) +
-  theme_bw()+
-  labs(x = "Total Number of Risk Alleles", y = "25(OH)D (nM)")+
-  theme(legend.position = "none")
+geom_boxplot(fill = c("green", "lightblue", "blue", "orange", "red")) +
+geom_jitter(width = 0.2) +
+stat_summary(fun.y=mean, geom="point", shape=23, size=3) +
+theme_bw()+
+labs(x = "Total Number of Risk Alleles", y = "25(OH)D (nM)")+
+theme(legend.position = "none")
 
 rs7041_scatter <- ggscatter(x = "rs7041_risk_alleles", y = "OHD_B", xlab = "rs7041 Risk Alleles", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
 rs4588_scatter <- ggscatter(x = "rs4588_risk_alleles", y = "OHD_B", xlab = "rs4588 Risk Alleles", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
@@ -188,19 +195,40 @@ combined_fig <- ggarrange(rs7041_boxplot, rs7041_scatter, rs4588_boxplot, rs4588
 
 Total_scatter <- ggscatter(x = "Total_risk_alleles", y = "OHD_B", xlab = "Total Risk Alleles", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
 
-ggscatter(x = "M_age", y = "OHD_B", xlab = "Maternal Age", ylab = "25(OH)D", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
+ggscatter(x = "M_age", y = "OHD_B", xlab = "Maternal Age", ylab = "25(OH)D", color = "Haplotype", add = "reg.line", add.params = list(color = "red", fill = "lightgray"), conf.int = TRUE, cor.coef = TRUE, data = Ethiopia_data)
 
 total_combined <- ggarrange(Total_boxplot, Total_scatter + rremove("x.text"), labels = c("A", "B"), ncol = 2, nrow = 1)
 
-Total_change_boxplot <- ggplot(data = Ethiopia_data, aes(group= Total_risk_alleles, x = Total_risk_alleles, y = abs_change)) +
+Total_change_boxplot <- ggplot(data = Ethiopia_data, aes(group= Total_risk_alleles, x = Total_risk_alleles, y = abs_change12)) +
 geom_jitter(aes(colour = Group), width = 0.27, size = 2.8) +
 theme_bw()+
 labs(x = "Total Number of Risk Alleles", y = "Absolute Change in 25(OH)D (nM)")
 
-Haplotype_change_boxplot <- ggplot(data = Ethiopia_data, aes(x = Haplotype, y = abs_change)) +
+Haplotype_change_boxplot <- ggplot(data = Ethiopia_data, aes(x = Haplotype, y = abs_change12)) +
 geom_jitter(aes(colour = Group), width = 0.15, size = 2.5) +
 theme_bw()+
 labs(x = "Haplotype", y = "Absolute Change in 25(OH)D (nM)")
+
+
+## For plot colored by supplement or placebo
+ggplot(Ethiopia_data, aes(x=reorder(ID, -abs_change12), y=abs_change12)) + 
+  geom_bar(aes(fill=Group), stat="identity") +
+  labs(x="", y="Absolute Change in 25(OHD) in nM", fill="Group") +
+  theme_classic()+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        legend.position = "bottom")
+
+ggplot(Ethiopia_data, aes(x=reorder(ID, -rel_change), y=rel_change)) + 
+  geom_bar(aes(fill=Group), stat="identity") +
+  labs(x="", y="Absolute Change in 25(OHD) in nM", fill="Group") +
+  theme_classic()+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        legend.position = "bottom")
+
 
 ## Summary statistics for table 1
 summary(Ethiopia_data$rs7041)
