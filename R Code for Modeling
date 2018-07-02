@@ -19,15 +19,6 @@ Ethiopia_data$abs_change6 <- Ethiopia_data$OHD_6 - Ethiopia_data$OHD_B
 Ethiopia_data$rel_change12 <- (Ethiopia_data$OHD_E - Ethiopia_data$OHD_B)/Ethiopia_data$OHD_B
 Ethiopia_data$rel_change6 <- (Ethiopia_data$OHD_6 - Ethiopia_data$OHD_B)/Ethiopia_data$OHD_B
 Ethiopia_data$Haplotype <- paste(Ethiopia_data$rs7041, Ethiopia_data$rs4588, sep = "")
-Ethiopia_data$alb_gl_B <- Ethiopia_data$Alb_base * 10
-Ethiopia_data$alb_gl_6 <- Ethiopia_data$Alb_6mo * 10
-Ethiopia_data$alb_gl_12 <- Ethiopia_data$Alb_12mo * 10
-Ethiopia_data$molar_alb_B <- Ethiopia_data$alb_gl_B / 66430
-Ethiopia_data$molar_alb_6 <- Ethiopia_data$alb_gl_6 / 66430
-Ethiopia_data$molar_alb_12 <- Ethiopia_data$alb_gl_12 / 66430
-
-Ethiopia_data$VDBP_gL <- Ethiopia_data$VDBP
-Ethiopia_data$molar_VDBP <- Ethiopia_data$VDBP_gl / 58000
 
 ABonly_data <- subset(Ethiopia_data, Letter == 'AB')
 CDonly_data <- subset(Ethiopia_data, Letter == 'CD')
@@ -51,15 +42,9 @@ CDonly_CConly <- subset(CDonly_data, rs4588 == 'CC')
 CDonly_CAonly <- subset(CDonly_data, rs4588 == 'CA')
 CDonly_AAonly <- subset(CDonly_data, rs4588 == 'AA')
 
-# Create affinity constant variable for each haplogroup
-KDBPgeneric <- 0.7*10^9
-KDBP1s <- 0.6*10^9
-KDBP1f <- 1.12*10^9
-KDBP2 <- 0.36*10^9
-Kalb <- 6*10^5
 
-
-## Getting summary statistics by genotype at each SNP
+### TABLE 1
+# Getting summary statistics by genotype at each SNP
 rs7041_sum_stats <- summary(rs7041_risk_alleles ~ M_age + BMI_B + OHD_B, method = "reverse", data = Ethiopia_data)
 rs4588_sum_stats <- summary(rs4588_risk_alleles ~ M_age + BMI_B + OHD_B, method = "reverse", data = Ethiopia_data)
 rs7041_CD_res_stats <- summary(rs7041_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = CDonly_data)
@@ -67,8 +52,7 @@ rs4588_CD_res_stats <- summary(rs4588_risk_alleles ~ OHD_B + Change_OHD + OHD_E,
 rs7041_AB_res_stats <- summary(rs7041_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = ABonly_data)
 rs4588_AB_res_stats <- summary(rs4588_risk_alleles ~ OHD_B + Change_OHD + OHD_E, method = "reverse", data = ABonly_data)
 
-
-## Print the above variables
+# Print the above variables
 rs7041_sum_stats
 rs4588_sum_stats
 rs7041_CD_res_stats
@@ -76,53 +60,46 @@ rs4588_CD_res_stats
 rs7041_AB_res_stats
 rs4588_AB_res_stats
 
-## Run ANOVA to determine p values for each summary stat per genotype
+# Run ANOVA to determine p values for each summary stat per genotype
 aov.fit_age7041 <- aov(M_age ~ rs7041_risk_alleles, data = Ethiopia_data)
 aov.fit_age4588 <- aov(M_age ~ rs4588_risk_alleles, data = Ethiopia_data)
 aov.fit_BMI7041 <- aov(BMI_B ~ rs7041_risk_alleles, data = Ethiopia_data)
 aov.fit_BMI4588 <- aov(BMI_B ~ rs4588_risk_alleles, data = Ethiopia_data)
 
-
-## Print summary of above
+# Print summary of above
 summary(aov.fit_age7041)
 summary(aov.fit_age4588)
 summary(aov.fit_BMI7041)
 summary(aov.fit_BMI4588)
 
 
-## Create Linear Regression Model stored in variable "fit" and logistic regression model "logistfit"
+### Regression Modelling for all models included in the paper
+# Create Linear Regression Model stored in variable "fit" and logistic regression model "logistfit"
 fit1 <- lm(OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
 fit2 <- lm(OHD_B ~ rs7041_risk_alleles + M_age, data = Ethiopia_data)
 fit3 <- lm(OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
 fit4 <- lm(OHD_B ~ rs4588_risk_alleles + M_age, data = Ethiopia_data)
 fit5 <- lm(OHD_B ~ Total_risk_alleles + M_age, data = Ethiopia_data)
-logfit50_7041 <- glm(vit_d_deficient50 ~ rs7041_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
 logfit40_7041 <- glm(vit_d_deficient40 ~ rs7041_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
-logfit30_7041 <- glm(vit_d_deficient30 ~ rs7041_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
-logfit50_4588 <- glm(vit_d_deficient50 ~ rs4588_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
 logfit40_4588 <- glm(vit_d_deficient40 ~ rs4588_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)
-logfit30_4588 <- glm(vit_d_deficient30 ~ rs4588_risk_alleles + M_age,family=binomial(link='logit'), data= Ethiopia_data)  
 logfit40_total <- glm(vit_d_deficient40 ~ Total_risk_alleles+ M_age, family=binomial(link ='logit'), data = Ethiopia_data)
 
-## Get model stats and view quality plots and stats
+# Get model stats and view quality plots and stats
 summary(fit1)
 plot(fit1)
 mean(fit1$residuals)
 VIF(fit1)
 fit1.tests <- gvlma::gvlma(x = fit1)
-
 summary(fit2)
 plot(fit2)
 mean(fit2$residuals)
 VIF(fit2)
 fit2.tests <- gvlma::gvlma(x = fit2)
-
 summary(fit3)
 plot(fit3)
 mean(fit3$residuals)
 VIF(fit3)
 fit.tests3 <- gvlma::gvlma(x = fit3)
-
 summary(fit4)
 plot(fit4)
 mean(fit4$residuals)
@@ -130,38 +107,27 @@ VIF(fit4)
 fit.tests4 <- gvlma::gvlma(x = fit4)
 
 
-## Calculate odds ratios from logistic regression models
-ORlog50_7041 <- exp(cbind(OR = coef(logfit50_7041), confint(logfit50_7041)))
+# Calculate odds ratios from logistic regression models
 ORlog40_7041 <- exp(cbind(OR = coef(logfit40_7041), confint(logfit40_7041)))
-ORlog30_7041 <- exp(cbind(OR = coef(logfit30_7041), confint(logfit30_7041)))
-ORlog50_4588 <- exp(cbind(OR = coef(logfit50_4588), confint(logfit50_4588)))
 ORlog40_4588 <- exp(cbind(OR = coef(logfit40_4588), confint(logfit40_4588)))
-ORlog30_4588 <- exp(cbind(OR = coef(logfit30_4588), confint(logfit30_4588)))
 ORlog40_total <- exp(cbind(OR = coef(logfit40_total), confint(logfit40_total)))
 
-
-## Anova Analaysis for SNP's and log transformed OHD at baseline
+# Anova Analaysis for SNP's and log transformed OHD at baseline
 aov.fit7041 <- aov(ln_OHD_B ~ rs7041_risk_alleles, data = Ethiopia_data)
 aov.fit4588 <- aov(ln_OHD_B ~ rs4588_risk_alleles, data = Ethiopia_data)
 
-## Print summary of above
+# Print summary of above
 summary(aov.fit7041)
 summary(aov.fit4588)
 
-
-## Check models with plots
+# Check models with plots
 plot(aov.fit7041)
 plot(aov.fit4588)
 
 
-## Post Hoc Analysis of the above by Tukey's Test
-tukeytest7041 <- TukeyHSD(aov.fit7041)
-tukeytest4588 <- TukeyHSD(aov.fit4588)  
-
-
-## Determining risk reduction caused by supplementation at timepoints 0, 6, & 12 weeks and cutoffs 40 & 50
-summary(rs7041 ~ vd_deficiency506 + vd_deficiency5012 + vd_deficiency406 + vd_deficiency4012, method = "reverse", data = CDonly_data)
-summary(rs7041 ~ vd_deficiency506 + vd_deficiency5012 + vd_deficiency406 + vd_deficiency4012, method = "reverse", data = ABonly_data)
+# Determining risk reduction caused by supplementation at timepoints 0, 6, & 12 months
+summary(rs7041 ~ vd_deficiency406 + vd_deficiency4012, method = "reverse", data = CDonly_data)
+summary(rs7041 ~ vd_deficiency406 + vd_deficiency4012, method = "reverse", data = ABonly_data)
 
 ## Publication quality plots
 rs7041_boxplot <- ggplot(data = Ethiopia_data, aes(x = rs7041, y = OHD_B, fill=rs7041)) +
@@ -228,6 +194,7 @@ ggplot(Ethiopia_data, aes(x=reorder(ID, -rel_change), y=rel_change)) +
         axis.text.x=element_blank(),
         axis.ticks.x=element_blank(),
         legend.position = "bottom")
+
 
 
 ## Summary statistics for table 1
